@@ -1,0 +1,158 @@
+From b504aa379e3d1b28246cf7c612af9c0306f1143b Mon Sep 17 00:00:00 2001
+From: Vu Dang <vu.dang.te@renesas.com>
+Date: Mon, 2 Oct 2023 08:54:32 +0700
+Subject: [PATCH 1/7] remove U-boot from system boot.
+
+This patch is used for:
+1. Remove U-boot (BL33) from system boot and
+2. Add Image and DTB to that boot sequence.
+
+DTB and Image are defined as BL331 and BL332 respectively for more suitable
+to the context that we boot from ATF.
+Now, in the boot sequence, BL33 will be replaced by BL331 and BL332.
+
+Signed-off-by: Vu Dang <vu.dang.te@renesas.com>
+---
+ bl31/bl31_main.c                              |  2 ++
+ .../rz/common/bl2_plat_mem_params_desc.c      | 29 +++++++++++++++----
+ plat/renesas/rz/common/include/platform_def.h | 15 ++++++++++
+ plat/renesas/rz/common/plat_storage.c         | 16 +++++++---
+ 4 files changed, 52 insertions(+), 10 deletions(-)
+
+diff --git a/bl31/bl31_main.c b/bl31/bl31_main.c
+index 2a3d838e4..204a7fbed 100644
+--- a/bl31/bl31_main.c
++++ b/bl31/bl31_main.c
+@@ -255,6 +255,8 @@ void __init bl31_prepare_next_image_entry(void)
+ 	assert(next_image_info != NULL);
+ 	assert(image_type == GET_SECURITY_STATE(next_image_info->h.attr));
+ 
++	INFO("BL31: Next arg0 for BL332 = 0x%lx\n", next_image_info->args.arg0);
++
+ 	INFO("BL31: Preparing for EL3 exit to %s world\n",
+ 		(image_type == SECURE) ? "secure" : "normal");
+ 	print_entry_point_info(next_image_info);
+diff --git a/plat/renesas/rz/common/bl2_plat_mem_params_desc.c b/plat/renesas/rz/common/bl2_plat_mem_params_desc.c
+index bc008d411..944173b50 100755
+--- a/plat/renesas/rz/common/bl2_plat_mem_params_desc.c
++++ b/plat/renesas/rz/common/bl2_plat_mem_params_desc.c
+@@ -33,7 +33,7 @@ static bl_mem_params_node_t bl2_mem_params_descs[] = {
+ # ifdef BL32_BASE
+ 		.next_handoff_image_id = BL32_IMAGE_ID,
+ # else
+-		.next_handoff_image_id = BL33_IMAGE_ID,
++		.next_handoff_image_id = BL331_IMAGE_ID,
+ # endif /* BL32_BASE */
+ 	},
+ # ifdef BL32_BASE
+@@ -54,19 +54,36 @@ static bl_mem_params_node_t bl2_mem_params_descs[] = {
+ 	},
+ # endif /* BL32_BASE */
+ 	{
+-		.image_id = BL33_IMAGE_ID,
++		.image_id = BL331_IMAGE_ID,
++
++		SET_STATIC_PARAM_HEAD(ep_info, PARAM_EP, VERSION_2,
++				entry_point_info_t, NON_SECURE | NON_EXECUTABLE),
++		.ep_info.pc = BL331_BASE,
++		.ep_info.spsr = 0,
++
++		SET_STATIC_PARAM_HEAD(image_info, PARAM_EP, VERSION_2,
++				image_info_t, 0),
++		.image_info.image_max_size = BL331_LIMIT - BL331_BASE,
++		.image_info.image_base = BL331_BASE,
++
++		.next_handoff_image_id = BL332_IMAGE_ID,
++	},
++	{
++		.image_id = BL332_IMAGE_ID,
+ 
+ 		SET_STATIC_PARAM_HEAD(ep_info, PARAM_EP, VERSION_2,
+ 			entry_point_info_t, NON_SECURE | EXECUTABLE),
+ 		.ep_info.spsr = SPSR_64(BL33_MODE, MODE_SP_ELX,
+ 			DISABLE_ALL_EXCEPTIONS),
+-		.ep_info.pc = BL33_BASE,
+-
++		.ep_info.pc = BL332_BASE,
++#ifdef RZ_BL332_ARG0
++		.ep_info.args.arg0 = RZ_BL332_ARG0,
++#endif
+ 		SET_STATIC_PARAM_HEAD(image_info, PARAM_EP, VERSION_2,
+ 			image_info_t, 0),
+ 		.image_info.image_max_size =
+-				(uint32_t) (BL33_LIMIT - BL33_BASE),
+-		.image_info.image_base = BL33_BASE,
++				(uint32_t) (BL332_LIMIT - BL332_BASE),
++		.image_info.image_base = BL332_BASE,
+ 
+ 		.next_handoff_image_id = INVALID_IMAGE_ID,
+ 	}
+diff --git a/plat/renesas/rz/common/include/platform_def.h b/plat/renesas/rz/common/include/platform_def.h
+index 8de429ba0..80e4dfc9a 100755
+--- a/plat/renesas/rz/common/include/platform_def.h
++++ b/plat/renesas/rz/common/include/platform_def.h
+@@ -66,6 +66,21 @@
+ #define BL32_LIMIT				(BL32_BASE + 0x100000)
+ #endif
+ 
++/*******************************************************************************
++ *  * BL331
++ *   ******************************************************************************/
++#define BL331_BASE                              (0x48000000)
++#define BL331_LIMIT                             (BL331_BASE + 0x80000)
++#define BL331_IMAGE_ID                          NT_FW_CONFIG_ID
++
++/*******************************************************************************
++ *  * BL332
++ *   ******************************************************************************/
++#define BL332_BASE                              (0x48080000)
++#define BL332_LIMIT                             (BL332_BASE + 0x08000000)
++#define RZ_BL332_ARG0                           (0x48000000)
++#define BL332_IMAGE_ID                          BL33_IMAGE_ID
++
+ /*******************************************************************************
+  * BL33
+  ******************************************************************************/
+diff --git a/plat/renesas/rz/common/plat_storage.c b/plat/renesas/rz/common/plat_storage.c
+index c6a933009..20f611041 100755
+--- a/plat/renesas/rz/common/plat_storage.c
++++ b/plat/renesas/rz/common/plat_storage.c
+@@ -56,7 +56,11 @@ static const io_uuid_spec_t bl32_file_spec = {
+ 	.uuid = UUID_SECURE_PAYLOAD_BL32,
+ };
+ 
+-static const io_uuid_spec_t bl33_file_spec = {
++static const io_uuid_spec_t bl331_file_spec = {
++	.uuid = UUID_NT_FW_CONFIG,
++};
++
++static const io_uuid_spec_t bl332_file_spec = {
+ 	.uuid = UUID_NON_TRUSTED_FIRMWARE_BL33,
+ };
+ 
+@@ -107,9 +111,13 @@ static struct plat_io_policy policies[] = {
+ 				&fip_dev_handle,
+ 				(uintptr_t) &bl32_file_spec,
+ 				&open_fipdrv},
+-	[BL33_IMAGE_ID] = {
++	[BL331_IMAGE_ID] = {
+ 				&fip_dev_handle,
+-				(uintptr_t) &bl33_file_spec,
++				(uintptr_t) &bl331_file_spec,
++				&open_fipdrv},
++	[BL332_IMAGE_ID] = {
++				&fip_dev_handle,
++				(uintptr_t) &bl332_file_spec,
+ 				&open_fipdrv},
+ #if TRUSTED_BOARD_BOOT
+ 	[SOC_FW_KEY_CERT_ID] = {
+@@ -262,4 +270,4 @@ int plat_get_image_source(unsigned int image_id, uintptr_t *dev_handle,
+ 	*dev_handle = *(policy->dev_handle);
+ 
+ 	return 0;
+-}
+\ No newline at end of file
++}
+-- 
+2.34.1
+

@@ -1,0 +1,60 @@
+From c511f0e01ac25fad5ae68e2aa1a57e0256d5a5a3 Mon Sep 17 00:00:00 2001
+From: Vu Dang <vu.dang.te@renasas.com>
+Date: Wed, 4 Oct 2023 17:05:56 +0700
+Subject: [PATCH 8/8] bl2: W/A to bring CM33 up
+
+Signed-off-by: Vu Dang <vu.dang.te@renasas.com>
+---
+ bl2/bl2_image_load_v2.c | 3 ++-
+ bl2/bl2_main.c          | 6 ++++--
+ 2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/bl2/bl2_image_load_v2.c b/bl2/bl2_image_load_v2.c
+index c8c9aa149..27db431ad 100644
+--- a/bl2/bl2_image_load_v2.c
++++ b/bl2/bl2_image_load_v2.c
+@@ -89,12 +89,13 @@ struct entry_point_info *bl2_load_images(void)
+ 
+ 		if(bl2_node_info->image_id == BL331_IMAGE_ID)
+ 		{
+-			NOTICE("BL2: Kich CM33 image id = %d\n", bl2_node_info->image_id);
++			NOTICE("BL2: Kick CM33 image id = %d\n", bl2_node_info->image_id);
+ 			/* init_I2C_clk */
+ 			//init_I2C_clk();
+ 
+ 			/* Kick CM33 */
+ 			kick_cm33();
++                        NOTICE("BL2: Kicked CM33\n");
+ 		}
+ 
+ 		/* Go to next image */
+diff --git a/bl2/bl2_main.c b/bl2/bl2_main.c
+index 6ca798fbf..357229465 100644
+--- a/bl2/bl2_main.c
++++ b/bl2/bl2_main.c
+@@ -191,10 +191,10 @@ void write_register(uintptr_t addr, uint32_t value)
+ {
+         mmio_write_32(addr, value);
+         if(mmio_read_32(addr) != value){
+-                INFO("BL2: Write register addr = 0x%lx <-- value = 0x%x - failed\n", addr, value);
++                NOTICE("BL2: Write register addr = 0x%lx <-- value = 0x%x - failed\n", addr, value);
+         }
+         else {
+-                INFO("BL2: Write register addr = 0x%lx <-- value = 0x%x - passed\n", addr, value);
++                NOTICE("BL2: Write register addr = 0x%lx <-- value = 0x%x - passed\n", addr, value);
+         }
+ }
+ 
+@@ -266,7 +266,9 @@ void cm33_start(unsigned char debug, uint32_t s_addr, uint32_t ns_addr)
+ }
+ 
+ void kick_cm33() {
++        INFO("BL2: cm33_start before\n");
+         cm33_start(1, 0x1001FF80, 0x00010000);
++        INFO("BL2: cm33_start after\n");
+ }
+ 
+ /*******************************************************************************
+-- 
+2.17.1
+

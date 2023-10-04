@@ -1,0 +1,162 @@
+From 53098666db47f8d29d673ab15bd96f1d6f17574b Mon Sep 17 00:00:00 2001
+From: Vu Dang <vu.dang.te@renesas.com>
+Date: Tue, 3 Oct 2023 16:34:29 +0700
+Subject: [PATCH 7/7] BL2: init essential clocks for avnet board
+
+We port some essential clocks which are set in U-boot to ATF
+to make sure the system works correctly.
+
+Signed-off-by: Vu Dang <vu.dang.te@renesas.com>
+---
+ bl2/bl2_image_load_v2.c |  4 +-
+ bl2/bl2_main.c          | 98 ++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 94 insertions(+), 8 deletions(-)
+
+diff --git a/bl2/bl2_image_load_v2.c b/bl2/bl2_image_load_v2.c
+index d3e274570..c8c9aa149 100644
+--- a/bl2/bl2_image_load_v2.c
++++ b/bl2/bl2_image_load_v2.c
+@@ -18,7 +18,7 @@
+ 
+ #include <platform_def.h>
+ 
+-extern void init_I2C_clk(void);
++//extern void init_I2C_clk(void);
+ extern void kick_cm33();
+ 
+ /*******************************************************************************
+@@ -91,7 +91,7 @@ struct entry_point_info *bl2_load_images(void)
+ 		{
+ 			NOTICE("BL2: Kich CM33 image id = %d\n", bl2_node_info->image_id);
+ 			/* init_I2C_clk */
+-			init_I2C_clk();
++			//init_I2C_clk();
+ 
+ 			/* Kick CM33 */
+ 			kick_cm33();
+diff --git a/bl2/bl2_main.c b/bl2/bl2_main.c
+index 894b60760..6ca798fbf 100644
+--- a/bl2/bl2_main.c
++++ b/bl2/bl2_main.c
+@@ -92,19 +92,99 @@ void bl2_setup(u_register_t arg0, u_register_t arg1, u_register_t arg2,
+ 
+ /* PFC */
+ #define PFC_BASE			(0x11030000)
++#define ETH_CH0                         (PFC_BASE + 0x300c)
++#define ETH_CH1                         (PFC_BASE + 0x3010)
+ #define I2C_CH1				(PFC_BASE + 0x1870)
++#define ETH_PVDD_3300 0x00
++#define ETH_PVDD_1800 0x01
++#define ETH_PVDD_2500 0x02
++#define ETH_MII_RGMII                   (PFC_BASE + 0x3018)
++
++/* CPG */
+ #define CPG_BASE			0x11010000
+-#define CPG_RESET_BASE		(CPG_BASE + 0x800)
+-#define CPG_RESET_I2C        (CPG_RESET_BASE + 0x80)
++#define CPG_CLKON_BASE                  (CPG_BASE + 0x500)
++#define CPG_RESET_BASE			(CPG_BASE + 0x800)
++#define CPG_RESET_ETH                   (CPG_RESET_BASE + 0x7C)
++#define CPG_RESET_I2C        		(CPG_RESET_BASE + 0x80)
++#define CPG_PL2_SDHI_DSEL               (CPG_BASE + 0x218)
++#define CPG_CLK_STATUS                  (CPG_BASE + 0x280)
++
++/* PFC */
++#define PFC_P37                                         (PFC_BASE + 0x037)
++#define PFC_PM37                                        (PFC_BASE + 0x16E)
++#define PFC_PMC37                                       (PFC_BASE + 0x237)
+ 
+-void init_I2C_clk(void)
++void s_init(void)
+ {
+-	/* I2C CLK */
+-	mmio_write_32(CPG_RESET_I2C, 0xF000F);
++	/* SD1 power control: P39_1 = 0; P39_2 = 1; */
++	*(volatile uint32_t *)(PFC_PMC37) &= 0xFFFFFFF9; /* Port func mode 0b00 */
++	*(volatile uint32_t *)(PFC_PM37) = (*(volatile uint32_t *)(PFC_PM37) & 0xFFFFFFC3) | 0x28; /* Port output mode 0b1010 */
++	*(volatile uint32_t *)(PFC_P37) = (*(volatile uint32_t *)(PFC_P37) & 0xFFFFFFF9) | 0x6;   /* Port 39[2:1] output value 0b11*/
++
++	/* can go in board_eht_init() once enabled */
++	*(volatile uint32_t *)(ETH_CH0) = (*(volatile uint32_t *)(ETH_CH0) & 0xFFFFFFFC) | ETH_PVDD_1800;
++	/* Enable RGMII for both ETH{0,1} */
++	*(volatile uint32_t *)(ETH_MII_RGMII) = (*(volatile uint32_t *)(ETH_MII_RGMII) & 0xFFFFFFFC);
++	/* ETH CLK */
++	*(volatile uint32_t *)(CPG_RESET_ETH) = 0x30003;
+ 
++	/* SD CLK */
++	*(volatile uint32_t *)(CPG_PL2_SDHI_DSEL) = 0x00110011;
++
++	/* I2C CLK */
++	*(volatile uint32_t *)(CPG_RESET_I2C) = 0xF000F;
+ 	/* I2C pin non GPIO enable */
+-	mmio_write_32(I2C_CH1, 0x01010101);
++	*(volatile uint32_t *)(I2C_CH1) = 0x01010101;
+ 
++	/* SD CLK */
++	*(volatile uint32_t *)(CPG_PL2_SDHI_DSEL) = 0x00110011;
++	while (*(volatile uint32_t *)(CPG_CLK_STATUS) != 0)
++		;
++}
++
++/* PFC */
++#define PFC_P18                                 (PFC_BASE + 0x018)
++#define PFC_PM18                                (PFC_BASE + 0x130)
++#define PFC_PMC18                               (PFC_BASE + 0x218)
++#define PFC_P21                                 (PFC_BASE + 0x142)
++#define PFC_PM21                                (PFC_BASE + 0x128)
++#define PFC_PMC21                               (PFC_BASE + 0x221)
++#define PFC_P23                                 (PFC_BASE + 0x023)
++#define PFC_PM23                                (PFC_BASE + 0x146)
++#define PFC_PMC23                               (PFC_BASE + 0x223)
++
++#define PFC_P10                                 (PFC_BASE + 0x010)
++#define PFC_PM10                                (PFC_BASE + 0x120)
++#define PFC_PMC10                               (PFC_BASE + 0x210)
++
++int board_led_init(void)
++{
++	/* RED LED: P8_1 = 0; */
++	*(volatile uint32_t *)(PFC_PMC18) &= 0xFFFFFFFD;
++	*(volatile uint32_t *)(PFC_PM18) = (*(volatile uint32_t *)(PFC_PM18) & 0xFFFFFFF3) | 0x08;
++	*(volatile uint32_t *)(PFC_P18) = (*(volatile uint32_t *)(PFC_P18) & 0xFFFFFFFD) | 0x0;
++	/* GREEN LED: P17_2 = 1; */
++	*(volatile uint32_t *)(PFC_PMC21) &= 0xFFFFFFFB;
++	*(volatile uint32_t *)(PFC_PM21) = (*(volatile uint32_t *)(PFC_PM21) & 0xFFFFFFCF) | 0x20;
++	*(volatile uint32_t *)(PFC_P21) = (*(volatile uint32_t *)(PFC_P21) & 0xFFFFFFFB) | 0x4;
++	/* BLUE LED: P19_1 = 0; */
++	*(volatile uint32_t *)(PFC_PMC23) &= 0xFFFFFFFD;
++	*(volatile uint32_t *)(PFC_PM23) = (*(volatile uint32_t *)(PFC_PM23) & 0xFFFFFFF3) | 0x08;
++	*(volatile uint32_t *)(PFC_P23) = (*(volatile uint32_t *)(PFC_P23) & 0xFFFFFFFD) | 0x0;
++
++	return 0;
++}
++
++int usbhub_reset(void)
++{
++	/* USB Hub Reset: P0_0 = 1; */
++	*(volatile uint32_t *)(PFC_PMC10) &= 0xFFFFFFFE;
++	*(volatile uint32_t *)(PFC_PM10) = (*(volatile uint32_t *)(PFC_PM10) & 0xFFFFFFFC) | 0x02;
++	*(volatile uint32_t *)(PFC_P10) = (*(volatile uint32_t *)(PFC_P10) & 0xFFFFFFFE) | 0x0;
++	mdelay(2);
++	*(volatile uint32_t *)(PFC_P10) = (*(volatile uint32_t *)(PFC_P10) & 0xFFFFFFFE) | 0x1;
++
++	return 0;
+ }
+ 
+ void write_register(uintptr_t addr, uint32_t value)
+@@ -204,6 +284,12 @@ void bl2_main(void)
+ 	/* Perform remaining generic architectural setup in S-EL1 */
+ 	bl2_arch_setup();
+ 
++	board_led_init();
++
++	s_init();
++
++	usbhub_reset();
++
+ #if PSA_FWU_SUPPORT
+ 	fwu_init();
+ #endif /* PSA_FWU_SUPPORT */
+-- 
+2.34.1
+

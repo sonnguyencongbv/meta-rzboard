@@ -11,3 +11,16 @@ PLATFORM_rzboard = "v2l"
 EXTRA_FLAGS_rzboard = "BOARD=rzboard"
 FLASH_ADDRESS_BL2_BP_rzboard = "00000"
 FLASH_ADDRESS_FIP_rzboard = "1D200"
+
+FILESEXTRAPATHS_prepend := "${THISDIR}/files:"
+
+SRC_URI_append = " \
+       file://0001-remove-U-boot-from-system-boot.patch \
+       file://0002-support-loading-FreeRTOS-binaries.patch \
+       file://0003-Kick-CM33-smarc-rzv2l.patch \
+       file://0004-init-I2C-clock-in-ATF.patch \
+       file://0005-kick-cm33-before-loading-kernel.patch \
+       file://0006-pull-up-pin-P48_3-at-ATF-entry.patch \
+       file://0007-BL2-init-essential-clocks-for-avnet-board.patch \
+       file://0008-bl2-W-A-to-bring-CM33-up.patch \
+"

@@ -1,0 +1,50 @@
+From e581871d774de47c48dfb43a24b232fc39330ab8 Mon Sep 17 00:00:00 2001
+From: "son.nguyen-cong" <son.nguyen-cong@banvien.com.vn>
+Date: Fri, 28 Oct 2022 13:18:05 +0700
+Subject: [PATCH 4/7] init I2C clock in ATF
+
+---
+ bl2/bl2_main.c | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
+
+diff --git a/bl2/bl2_main.c b/bl2/bl2_main.c
+index 458fd1bf5..fe5c6e836 100644
+--- a/bl2/bl2_main.c
++++ b/bl2/bl2_main.c
+@@ -90,6 +90,23 @@ void bl2_setup(u_register_t arg0, u_register_t arg1, u_register_t arg2,
+ #define SYS_LSI_MODE                                    (0x11020A00)    // LSI Mode Signal Register
+ #define SYS_LP_CM33CTL1                                 (0x11020D28)    // Lowpower Sequence CM33 Control Register1
+ 
++/* PFC */
++#define PFC_BASE			(0x11030000)
++#define I2C_CH1				(PFC_BASE + 0x1870)
++#define CPG_BASE			0x11010000
++#define CPG_RESET_BASE		(CPG_BASE + 0x800)
++#define CPG_RESET_I2C        (CPG_RESET_BASE + 0x80)
++
++void init_I2C_clk(void)
++{
++	/* I2C CLK */
++	mmio_write_32(CPG_RESET_I2C, 0xF000F);
++
++	/* I2C pin non GPIO enable */
++	mmio_write_32(I2C_CH1, 0x01010101);
++
++}
++
+ void write_register(uintptr_t addr, uint32_t value)
+ {
+         mmio_write_32(addr, value);
+@@ -205,6 +222,9 @@ void bl2_main(void)
+ 	/* Load the subsequent bootloader images. */
+ 	next_bl_ep_info = bl2_load_images();
+ 
++		/* init_I2C_clk */
++		init_I2C_clk();
++
+         /* Kick CM33 */
+         kick_cm33();
+ 
+-- 
+2.34.1
+

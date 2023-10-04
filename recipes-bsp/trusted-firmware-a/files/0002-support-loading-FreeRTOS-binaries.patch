@@ -1,0 +1,195 @@
+From 61e95d2e433da388dc0f6a7b639432d847e4b18f Mon Sep 17 00:00:00 2001
+From: Vu Dang <vu.dang.te@renesas.com>
+Date: Mon, 2 Oct 2023 09:22:39 +0700
+Subject: [PATCH 2/7] support loading FreeRTOS binaries
+
+This patch is used to load FreeRTOS binaries (from Multi-OS package) to RAM
+
+Signed-off-by: Vu Dang <vu.dang.te@renesas.com>
+---
+ .../rz/common/bl2_plat_mem_params_desc.c      | 62 ++++++++++++++++++-
+ plat/renesas/rz/common/include/platform_def.h | 32 ++++++++--
+ plat/renesas/rz/common/plat_storage.c         | 32 ++++++++++
+ 3 files changed, 121 insertions(+), 5 deletions(-)
+
+diff --git a/plat/renesas/rz/common/bl2_plat_mem_params_desc.c b/plat/renesas/rz/common/bl2_plat_mem_params_desc.c
+index 944173b50..4365c675a 100755
+--- a/plat/renesas/rz/common/bl2_plat_mem_params_desc.c
++++ b/plat/renesas/rz/common/bl2_plat_mem_params_desc.c
+@@ -33,7 +33,7 @@ static bl_mem_params_node_t bl2_mem_params_descs[] = {
+ # ifdef BL32_BASE
+ 		.next_handoff_image_id = BL32_IMAGE_ID,
+ # else
+-		.next_handoff_image_id = BL331_IMAGE_ID,
++		.next_handoff_image_id = FW_CONFIG_ID,
+ # endif /* BL32_BASE */
+ 	},
+ # ifdef BL32_BASE
+@@ -53,6 +53,66 @@ static bl_mem_params_node_t bl2_mem_params_descs[] = {
+ 		.next_handoff_image_id = BL33_IMAGE_ID,
+ 	},
+ # endif /* BL32_BASE */
++	{
++		.image_id = FW_CONFIG_ID,
++
++		SET_STATIC_PARAM_HEAD(ep_info, PARAM_EP, VERSION_2,
++				entry_point_info_t, NON_SECURE | NON_EXECUTABLE),
++		.ep_info.pc = FW_CONFIG_BASE,
++		.ep_info.spsr = 0,
++
++		SET_STATIC_PARAM_HEAD(image_info, PARAM_EP, VERSION_2,
++				image_info_t, 0),
++		.image_info.image_max_size = FW_CONFIG_LIMIT - FW_CONFIG_BASE,
++		.image_info.image_base = FW_CONFIG_BASE,
++
++		.next_handoff_image_id = HW_CONFIG_ID,
++	}, /* Finish load for rzv2l_cm33_rpmsg_demo_secure_code.bin */
++	{
++		.image_id = HW_CONFIG_ID,
++
++		SET_STATIC_PARAM_HEAD(ep_info, PARAM_EP, VERSION_2,
++				entry_point_info_t, NON_SECURE | NON_EXECUTABLE),
++		.ep_info.pc = HW_CONFIG_BASE,
++		.ep_info.spsr = 0,
++
++		SET_STATIC_PARAM_HEAD(image_info, PARAM_EP, VERSION_2,
++				image_info_t, 0),
++		.image_info.image_max_size = HW_CONFIG_LIMIT - HW_CONFIG_BASE,
++		.image_info.image_base = HW_CONFIG_BASE,
++
++		.next_handoff_image_id = SOC_FW_CONFIG_ID,
++	}, /* Finish load for rzv2l_cm33_rpmsg_demo_non_secure_vector.bin */
++	{
++		.image_id = SOC_FW_CONFIG_ID,
++
++		SET_STATIC_PARAM_HEAD(ep_info, PARAM_EP, VERSION_2,
++				entry_point_info_t, NON_SECURE | NON_EXECUTABLE),
++		.ep_info.pc = SOC_FW_CONFIG_BASE,
++		.ep_info.spsr = 0,
++
++		SET_STATIC_PARAM_HEAD(image_info, PARAM_EP, VERSION_2,
++				image_info_t, 0),
++		.image_info.image_max_size = SOC_FW_CONFIG_LIMIT - SOC_FW_CONFIG_BASE,
++		.image_info.image_base = SOC_FW_CONFIG_BASE,
++
++		.next_handoff_image_id = RMM_IMAGE_ID,
++	}, /* Finish load for rzv2l_cm33_rpmsg_demo_secure_vector.bin */
++	{
++		.image_id = RMM_IMAGE_ID,
++
++		SET_STATIC_PARAM_HEAD(ep_info, PARAM_EP, VERSION_2,
++				entry_point_info_t, NON_SECURE | EXECUTABLE),
++		.ep_info.pc = RMM_FW_BASE,
++		.ep_info.spsr = 0,
++
++		SET_STATIC_PARAM_HEAD(image_info, PARAM_EP, VERSION_2,
++				image_info_t, 0),
++		.image_info.image_max_size = RMM_FW_LIMIT - RMM_FW_BASE,
++		.image_info.image_base = RMM_FW_BASE,
++
++		.next_handoff_image_id = BL331_IMAGE_ID,
++	}, /* Finish load for rzv2l_cm33_rpmsg_demo_non_secure_code.bin */
+ 	{
+ 		.image_id = BL331_IMAGE_ID,
+ 
+diff --git a/plat/renesas/rz/common/include/platform_def.h b/plat/renesas/rz/common/include/platform_def.h
+index 80e4dfc9a..b9fa43302 100755
+--- a/plat/renesas/rz/common/include/platform_def.h
++++ b/plat/renesas/rz/common/include/platform_def.h
+@@ -67,15 +67,39 @@
+ #endif
+ 
+ /*******************************************************************************
+- *  * BL331
+- *   ******************************************************************************/
++ * FW_CONFIG specific defines.
++ *******************************************************************************/
++#define FW_CONFIG_BASE                          (0x42EFF440)
++#define FW_CONFIG_LIMIT                         (FW_CONFIG_BASE + 10000)
++
++/*******************************************************************************
++ * HW_CONFIG specific defines.
++ *******************************************************************************/
++#define HW_CONFIG_BASE                          (0x00010000)
++#define HW_CONFIG_LIMIT                         (HW_CONFIG_BASE + 5000)
++
++/*******************************************************************************
++ * SOC_FW_CONFIG specific defines.
++ *******************************************************************************/
++#define SOC_FW_CONFIG_BASE                      (0x0001FF80)
++#define SOC_FW_CONFIG_LIMIT                     (SOC_FW_CONFIG_BASE + 10000)
++
++/*******************************************************************************
++ * Realm Monitor Management Firmware specific defines.
++ *******************************************************************************/
++#define RMM_FW_BASE                             (0x40010000)
++#define RMM_FW_LIMIT                            (RMM_FW_BASE + 100000)
++
++/*******************************************************************************
++ * BL331
++ *******************************************************************************/
+ #define BL331_BASE                              (0x48000000)
+ #define BL331_LIMIT                             (BL331_BASE + 0x80000)
+ #define BL331_IMAGE_ID                          NT_FW_CONFIG_ID
+ 
+ /*******************************************************************************
+- *  * BL332
+- *   ******************************************************************************/
++ * BL332
++ *******************************************************************************/
+ #define BL332_BASE                              (0x48080000)
+ #define BL332_LIMIT                             (BL332_BASE + 0x08000000)
+ #define RZ_BL332_ARG0                           (0x48000000)
+diff --git a/plat/renesas/rz/common/plat_storage.c b/plat/renesas/rz/common/plat_storage.c
+index 20f611041..60c8fdbe3 100755
+--- a/plat/renesas/rz/common/plat_storage.c
++++ b/plat/renesas/rz/common/plat_storage.c
+@@ -56,6 +56,22 @@ static const io_uuid_spec_t bl32_file_spec = {
+ 	.uuid = UUID_SECURE_PAYLOAD_BL32,
+ };
+ 
++static const io_uuid_spec_t fw_config_file_spec = {
++	.uuid = UUID_FW_CONFIG,
++};
++
++static const io_uuid_spec_t hw_config_file_spec = {
++	.uuid = UUID_HW_CONFIG,
++};
++
++static const io_uuid_spec_t soc_fw_config_file_spec = {
++	.uuid = UUID_SOC_FW_CONFIG,
++};
++
++static const io_uuid_spec_t rmm_fw_file_spec = {
++	.uuid = UUID_REALM_MONITOR_MGMT_FIRMWARE,
++};
++
+ static const io_uuid_spec_t bl331_file_spec = {
+ 	.uuid = UUID_NT_FW_CONFIG,
+ };
+@@ -111,6 +127,22 @@ static struct plat_io_policy policies[] = {
+ 				&fip_dev_handle,
+ 				(uintptr_t) &bl32_file_spec,
+ 				&open_fipdrv},
++	[FW_CONFIG_ID] = {
++				&fip_dev_handle,
++				(uintptr_t) &fw_config_file_spec,
++				&open_fipdrv},
++	[HW_CONFIG_ID] = {
++				&fip_dev_handle,
++				(uintptr_t) &hw_config_file_spec,
++				&open_fipdrv},
++	[SOC_FW_CONFIG_ID] = {
++				&fip_dev_handle,
++				(uintptr_t) &soc_fw_config_file_spec,
++				&open_fipdrv},
++	[RMM_IMAGE_ID] = {
++				&fip_dev_handle,
++				(uintptr_t) &rmm_fw_file_spec,
++				&open_fipdrv},
+ 	[BL331_IMAGE_ID] = {
+ 				&fip_dev_handle,
+ 				(uintptr_t) &bl331_file_spec,
+-- 
+2.34.1
+
