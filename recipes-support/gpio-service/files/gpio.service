@@ -1,0 +1,8 @@
+[Service]
+ExecStart=/usr/sbin/gpio.sh
+Restart=always
+[Install]
+WantedBy=multi-user.target
+[Service]
+StandardOutput=null
+StandardError=null
