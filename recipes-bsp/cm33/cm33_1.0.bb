@@ -1,4 +1,4 @@
-SUMMARY = "U-Boot Env"
+SUMMARY = "cm33 app"
 SECTION = "app"
 LICENSE = "GPLv2"
 LIC_FILES_CHKSUM = "file://${COREBASE}/meta/files/common-licenses/GPL-2.0;md5=801f80980d171dd6425610833a22dbe6"
@@ -17,6 +17,8 @@ SRC_URI_rzboard = " \
 "
 
 FILES_${PN} = "/boot"
+FILES_${PN}_rzg2l = "/boot "
+SYSROOT_DIRS_rzg2l += "/boot"
 
 do_install () {
     install -d ${D}/boot/cm33
