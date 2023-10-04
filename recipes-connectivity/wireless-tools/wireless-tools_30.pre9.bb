@@ -33,11 +33,11 @@ do_compile() {
 	oe_runmake all libiw.a
 }
 
-do_install() {
-	oe_runmake PREFIX=${D} install-iwmulticall install-dynamic install-man install-hdr
-	install -d ${D}${sbindir}
-	install -m 0755 ifrename ${D}${sbindir}/ifrename
-}
+# do_install() {
+# 	oe_runmake PREFIX=${D} install-iwmulticall install-dynamic install-man install-hdr
+# 	install -d ${D}${sbindir}
+# 	install -m 0755 ifrename ${D}${sbindir}/ifrename
+# }
 
 PACKAGES = "libiw libiw-dev libiw-doc ifrename-doc ifrename ${PN} ${PN}-doc ${PN}-dbg"
 

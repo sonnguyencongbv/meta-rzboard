@@ -13,10 +13,10 @@ SRC_URI += " \
 "
 
 # NXP Based Wireless Modules Murata 1ZM(88W8987)
-do_install_append () {
-	install -d ${D}${nonarch_base_libdir}/firmware/nxp/
+# do_install_append () {
+# 	install -d ${D}${nonarch_base_libdir}/firmware/nxp/
 
-    install -m 0644 ${WORKDIR}/rzboard-firmware/nxp/wifi_mod_para.conf ${D}${nonarch_base_libdir}/firmware/nxp/
-    install -m 0644 ${WORKDIR}/rzboard-firmware/nxp/sdiouart8987_combo_v0.bin ${D}${nonarch_base_libdir}/firmware/nxp/
-}
+#     install -m 0644 ${WORKDIR}/rzboard-firmware/nxp/wifi_mod_para.conf ${D}${nonarch_base_libdir}/firmware/nxp/
+#     install -m 0644 ${WORKDIR}/rzboard-firmware/nxp/sdiouart8987_combo_v0.bin ${D}${nonarch_base_libdir}/firmware/nxp/
+# }
 
