@@ -1,0 +1,31 @@
+From 2e95f82ebf0d8909f1b9d3a7a26cb255ba37bf3f Mon Sep 17 00:00:00 2001
+From: Vu Dang <vu.dang.te@renesas.com>
+Date: Mon, 2 Oct 2023 15:17:39 +0700
+Subject: [PATCH 3/6] arm64: dts: renesas: change default bootargs to boot from
+ emmc
+
+By default, Linux kernel will be stored on partition 1 and
+rootfs will be stored on partition 2.
+
+Signed-off-by: Vu Dang <vu.dang.te@renesas.com>
+---
+ arch/arm64/boot/dts/renesas/rzg2l-smarc-som.dtsi | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/rzg2l-smarc-som.dtsi b/arch/arm64/boot/dts/renesas/rzg2l-smarc-som.dtsi
+index 860d709303e7..a61df179c31f 100644
+--- a/arch/arm64/boot/dts/renesas/rzg2l-smarc-som.dtsi
++++ b/arch/arm64/boot/dts/renesas/rzg2l-smarc-som.dtsi
+@@ -55,7 +55,8 @@ aliases {
+ 	};
+ 
+ 	chosen {
+-		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
++		/* bootargs = "ignore_loglevel rw root=/dev/nfs ip=on"; */
++                bootargs = "quiet loglevel=3 root=/dev/mmcblk0p2 rootwait";
+ 	};
+ 
+ 	memory@48000000 {
+-- 
+2.34.1
+

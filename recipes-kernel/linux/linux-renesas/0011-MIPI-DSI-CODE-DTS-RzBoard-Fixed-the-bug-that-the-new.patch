@@ -1,0 +1,79 @@
+From cdf524bc3b76547a89db26b6c05c77a179c3d2f8 Mon Sep 17 00:00:00 2001
+From: Nick <nick.cheng@avnet.com>
+Date: Mon, 29 May 2023 16:20:38 +0800
+Subject: [PATCH 11/15] MIPI-DSI:CODE&DTS:RzBoard: Fixed the bug that the new
+ panel cannot display
+
+	Set the mipi enable pin as a power pin according to the Adapter V2 board
+	Update the driver code to parse this setting
+
+Signed-off-by: Nick <nick.cheng@avnet.com>
+---
+ arch/arm64/boot/dts/renesas/rzboard.dts       |  2 +-
+ drivers/gpu/drm/panel/panel-ilitek-ili9881c.c | 16 ++++++++++++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/rzboard.dts b/arch/arm64/boot/dts/renesas/rzboard.dts
+index 3d19ffa18209..8a53329a229b 100755
+--- a/arch/arm64/boot/dts/renesas/rzboard.dts
++++ b/arch/arm64/boot/dts/renesas/rzboard.dts
+@@ -269,7 +269,6 @@ wlan_pwrseq: wlan_pwrseq {
+ 
+ 	backlight: backlight {
+ 		compatible = "pwm-backlight";
+-		enable-gpios = <&pinctrl RZG2L_GPIO(43, 3) GPIO_ACTIVE_HIGH>;
+ 		pwms = <&gpt5 0 40000 0>;
+ 		brightness-levels = <0 8 32 64 96 128 160 192 224 255>;
+ 		default-brightness-level = <8>;
+@@ -644,6 +643,7 @@ dsi0_out: endpoint {
+ 	mipi_panel: panel@0 {
+ 		compatible = "ilitek,ph720128t005";
+ 		reg = <0>;
++		power-gpios = <&pinctrl RZG2L_GPIO(43, 3) GPIO_ACTIVE_HIGH>;
+ 		switch-gpios = <&pinctrl RZG2L_GPIO(43, 0) GPIO_ACTIVE_HIGH>;
+ 		backlight = <&backlight>;
+ 		status = "disabled";
+diff --git a/drivers/gpu/drm/panel/panel-ilitek-ili9881c.c b/drivers/gpu/drm/panel/panel-ilitek-ili9881c.c
+index 5f8b7ab345d9..10a8bf6d5daf 100644
+--- a/drivers/gpu/drm/panel/panel-ilitek-ili9881c.c
++++ b/drivers/gpu/drm/panel/panel-ilitek-ili9881c.c
+@@ -52,6 +52,7 @@ struct ili9881c_panel {
+ 	struct mipi_dsi_device	*dsi;
+ 	const struct panel_desc *desc;
+ 
++	struct gpio_desc	*power_gpio;
+ 	struct gpio_desc	*enable_gpio;
+ 	struct gpio_desc	*reset_gpio;
+ };
+@@ -743,6 +744,18 @@ static int ili9881c_dsi_probe(struct mipi_dsi_device *dsi)
+ 	ctx->dsi = dsi;
+ 	mipi_dsi_set_drvdata(dsi, ctx);
+ 
++    /* The power GPIO is MIPI VDD5V pin on the LCD adapter baord. */
++    ctx->power_gpio = devm_gpiod_get(&dsi->dev, "power", GPIOD_OUT_LOW);
++    if (IS_ERR(ctx->power_gpio)) {
++		dev_err(&dsi->dev, "failed to get mipi power gpio");
++		return PTR_ERR(ctx->power_gpio);
++    } else {
++		gpiod_set_value_cansleep(ctx->power_gpio, 0);
++		msleep(50);
++		gpiod_set_value_cansleep(ctx->power_gpio, 1);
++		msleep(400);
++    }
++
+     /* The enable GPIO is optional, this pin is MIPI DSI/HDMI switch select input. */
+     ctx->enable_gpio = devm_gpiod_get_optional(&dsi->dev, "switch", GPIOD_OUT_HIGH);
+     if (IS_ERR_OR_NULL(ctx->enable_gpio)) {
+@@ -798,6 +811,9 @@ static void ili9881c_dsi_shutdown(struct mipi_dsi_device *dsi)
+ 
+ 	ili9881c_disable(&ctx->panel);
+ 	ili9881c_unprepare(&ctx->panel);
++	if (ctx->power_gpio) {
++		gpiod_set_value_cansleep(ctx->power_gpio, 0);
++	}
+ }
+ 
+ 
+-- 
+2.34.1
+

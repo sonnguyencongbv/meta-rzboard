@@ -1,0 +1,44 @@
+From 1d4ed4fbb927a4b2a5a5b9f8cc97189de72dc188 Mon Sep 17 00:00:00 2001
+From: Vu Dang <vu.dang.te@renesas.com>
+Date: Mon, 2 Oct 2023 19:37:51 +0700
+Subject: [PATCH 09/15] MODIFIED:HDMI:CODE:RzBoard: Change the mipi clock to
+ adapt to 720p/1080p resolution
+
+Renesas has introduced a new way to get the mipi clock based on doing math.
+This patch is used to update some changes from Avnet.
+
+Signed-off-by: Vu Dang <vu.dang.te@renesas.com>
+---
+ arch/arm64/boot/dts/renesas/overlays/rzboard-hdmi.dts | 1 -
+ drivers/gpu/drm/rcar-du/rzg2l_mipi_dsi.c              | 3 ---
+ 2 files changed, 4 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/overlays/rzboard-hdmi.dts b/arch/arm64/boot/dts/renesas/overlays/rzboard-hdmi.dts
+index bcfbcef6f037..8ebe00a12016 100755
+--- a/arch/arm64/boot/dts/renesas/overlays/rzboard-hdmi.dts
++++ b/arch/arm64/boot/dts/renesas/overlays/rzboard-hdmi.dts
+@@ -16,7 +16,6 @@
+ /plugin/;
+ 
+ &du {
+-	dsi-lanes = <4>;
+ 	status = "okay";
+ };
+ 
+diff --git a/drivers/gpu/drm/rcar-du/rzg2l_mipi_dsi.c b/drivers/gpu/drm/rcar-du/rzg2l_mipi_dsi.c
+index 5fb33977d122..65c1f11080f6 100644
+--- a/drivers/gpu/drm/rcar-du/rzg2l_mipi_dsi.c
++++ b/drivers/gpu/drm/rcar-du/rzg2l_mipi_dsi.c
+@@ -186,9 +186,6 @@ static int rzg2l_mipi_dsi_startup(struct rzg2l_mipi_dsi *mipi_dsi)
+ 		timings.ths_zero = 23;
+ 	}
+ 
+-	if (IS_ENABLED(CONFIG_DRM_I2C_ADV7511))
+-		timings.ths_zero = 25;
+-
+ 	dphytim0 = DSIDPHYTIM0_TCLK_MISS(timings.tclk_miss) |
+ 		   DSIDPHYTIM0_T_INIT(timings.t_init);
+ 	dphytim1 = DSIDPHYTIM1_THS_PREPARE(timings.ths_prepare) |
+-- 
+2.34.1
+

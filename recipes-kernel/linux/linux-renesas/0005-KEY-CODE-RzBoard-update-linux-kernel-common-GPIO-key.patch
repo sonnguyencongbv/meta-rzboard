@@ -1,0 +1,35 @@
+From cdfae0b5b9f197458b8d6c5d62fc01b94f6e6c93 Mon Sep 17 00:00:00 2001
+From: "wenxue.guo@avnet.com" <wenxue.guo@avnet.com>
+Date: Thu, 27 Jan 2022 02:10:05 +0000
+Subject: [PATCH 05/15] KEY:CODE:RzBoard: update linux kernel common GPIO keys
+ driver
+
+	Fix RG/V2L GPIO don't support both falling-edge and rising-edge detect bug.
+
+Signed-off-by: wenxue.guo@avnet.com <wenxue.guo@avnet.com>
+---
+ drivers/input/keyboard/gpio_keys.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/input/keyboard/gpio_keys.c b/drivers/input/keyboard/gpio_keys.c
+index f2d4e4daa818..6cbdb3c79515 100644
+--- a/drivers/input/keyboard/gpio_keys.c
++++ b/drivers/input/keyboard/gpio_keys.c
+@@ -561,8 +561,12 @@ static int gpio_keys_setup_key(struct platform_device *pdev,
+ 
+ 		INIT_DELAYED_WORK(&bdata->work, gpio_keys_gpio_work_func);
+ 
+-		isr = gpio_keys_gpio_isr;
+-		irqflags = IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING;
++		/*  RZ/V2L don't support both falling-edge and rising-edge detect */
++		bdata->release_delay = button->debounce_interval;
++		timer_setup(&bdata->release_timer, gpio_keys_irq_timer, 0);
++
++		isr = gpio_keys_irq_isr;
++		irqflags = IRQF_TRIGGER_FALLING;
+ 
+ 		switch (button->wakeup_event_action) {
+ 		case EV_ACT_ASSERTED:
+-- 
+2.34.1
+

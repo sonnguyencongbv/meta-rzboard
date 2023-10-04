@@ -1,0 +1,31 @@
+From 5ca4d5d4edc30050bc8ab1482972f2494d61e4d6 Mon Sep 17 00:00:00 2001
+From: Vu Dang <vu.dang.te@renesas.com>
+Date: Mon, 2 Oct 2023 20:39:42 +0700
+Subject: [PATCH 14/15] arm64: dts: renesas: change default bootargs for
+ rzboard
+
+By default, Linux kernel will be stored on partition 1,
+rootfs will be stored on partition 2
+
+Signed-off-by: Vu Dang <vu.dang.te@renesas.com>
+---
+ arch/arm64/boot/dts/renesas/rzboard.dts | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/rzboard.dts b/arch/arm64/boot/dts/renesas/rzboard.dts
+index f4d53b365990..65061a114fb4 100755
+--- a/arch/arm64/boot/dts/renesas/rzboard.dts
++++ b/arch/arm64/boot/dts/renesas/rzboard.dts
+@@ -29,7 +29,8 @@ aliases {
+ 	};
+ 
+ 	chosen {
+-		bootargs = "ignore_loglevel";
++		/* bootargs = "ignore_loglevel"; */
++		bootargs = "quiet loglevel=3 root=/dev/mmcblk0p2 rootwait";
+ 		stdout-path = "serial0:115200n8";
+ 	};
+ 
+-- 
+2.34.1
+
